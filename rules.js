@@ -1,18 +1,9 @@
 /**
- * Правила проверки полей
+ * Rules for field checking
  */
 exports.RULES = {
-    /**
-     * Без ограничений
-     */
     NO_RESTRICTIONS: 0,
-    /**
-     * Нельзя undefined
-     */
     NOT_UNDEFINED: 1,
-    /**
-     * Нельзя null
-     */
     NOT_NULL: 2,
     ALLOWED_TRUE: 3,
     ALLOWED_FALSE: 4,

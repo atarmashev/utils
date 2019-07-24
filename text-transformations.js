@@ -1,9 +1,10 @@
-const TypesTransform = require('./types-transform.js');
+const { processRules, postProcessRules } = require('./types-transform.js');
 const { RULES } = require('./rules.js');
 const { TYPES } = require('./types.js');
+const { EXPORT_TYPES } = require('./export-types.js');
 
 /**
- * Преобразует информацию о типах в форме перечисления в массив правил валидации для этих типов
+ * Converts information of types in form of enumeration to list of validation rules for this types.
  * @param {Set<number>} types 
  */
 function typesToRules(types) {
@@ -11,16 +12,15 @@ function typesToRules(types) {
         return new Set([RULES.NO_RESTRICTIONS]);
     }
 
-    const result = new Set();
-    // добавление
-    TypesTransform.processRules(types, result);
-    // взаимное влияние запретов и разрешений
-    TypesTransform.postProcessRules(result);
+    // adding
+    const result = processRules(types);
+    // mutual influence of restrictions and permissions
+    postProcessRules(result);
 
     return result;
 }
 /**
- * Преобразует информацию о типах в форме строк в список правил валидации для этих типов
+ * Converts information of types in form of strings to list of validation rules for this types.
  * @param {string[]} rawTypes 
  */
 function rawTypesToRules(rawTypes) {
@@ -58,7 +58,10 @@ function rawTypesToRules(rawTypes) {
 
     return Array.from(typesToRules(setOfTypes));
 }
-
+/**
+ * Returns list of inexes of | separators in declaration of type of field.
+ * @param {string} value 
+ */
 function findSeparatorsInTypeDeclaration(value) {
     const result = [];
 
@@ -66,50 +69,50 @@ function findSeparatorsInTypeDeclaration(value) {
     let isInsideCircularBrackets = 0;
     for (let a = 0; a < value.length; ++a) {
         const currentSymbol = value[a];
-        // если угловая скобка открылась
+        // if angular bracket opened
         if (currentSymbol === '<') {
             isInsideAngularBrackets++;
         } 
-        // если угловая скобка закрылась
+        // if angular bracket closed
         else if (currentSymbol === '>') {
-            if (!(a > 0 && value[a - 1] === '=')) { // может встретится конструкция =>
+            if (!(a > 0 && value[a - 1] === '=')) { // could find =>
                 isInsideAngularBrackets--;
             }
         } 
-        // если круглая скобка открылась
+        // if circular bracket opened
         else if (currentSymbol === '(') {
             isInsideCircularBrackets++;
         } 
-        // если круглая скобка закрылась
+        // if circular bracket closed
         else if (currentSymbol === ')') {
             isInsideCircularBrackets--;
         }
-        // если нашли разделитель
+        // if separator found
         else if (currentSymbol === '|' && isInsideAngularBrackets === 0 && isInsideCircularBrackets === 0) {
             result.push(a);
         }
-        // ошибка угловых скобок - слишком много закрывающих
+        // error of angular brackets - too many closing
         else if (isInsideAngularBrackets < 0) {
-            throw new Error('Ошибка синтаксиса ts файла. Неправильно расставлены <> скобки в выражении ' + value);
+            throw new Error('Found error of .ts file syntax. Wrong arrage of <> brackets in expression ' + value);
         } 
-        // ошибка круглых скобок - слишком много закрывающих
+        // error of circular brackets - too many closing
         else if (isInsideCircularBrackets < 0) {
-            throw new Error('Ошибка синтаксиса ts файла. Неправильно расставлены () скобки в выражении ' + value);
+            throw new Error('Found error of .ts file syntax. Wrong arrage of () brackets in expression ' + value);
         }
     }
-    // ошибка угловых скобок - слишком много открывающих
+    // error of angular brackets - too many opening
     if (isInsideAngularBrackets > 0) {
-        throw new Error('Ошибка синтаксиса ts файла. Неправильно расставлены <> скобки в выражении ' + value);
+        throw new Error('Found error of .ts file syntax. Wrong arrage of <> brackets in expression ' + value);
     } 
-    // ошибка круглых скобок - слишком много открывающих
+    // error of circular brackets - too many opening
     if (isInsideCircularBrackets > 0) {
-        throw new Error('Ошибка синтаксиса ts файла. Неправильно расставлены () скобки в выражении ' + value);
+        throw new Error('Found error of .ts file syntax. Wrong arrage of () brackets in expression ' + value);
     }
 
     return result;
 }
 /**
- * Разбивает строку типов
+ * Parses string with declaration of field`s type.
  * @param {string} value 
  */
 function splitTypeString(value) {
@@ -129,7 +132,7 @@ function splitTypeString(value) {
     return result;
 }
 /**
- * Разбирает строку, где указан тип или несколько.
+ * Parses string with declaration of field`s type and returns corresponding array of rules.
  * @param {string} value 
  */
 function parseTypeString(value) {
@@ -138,19 +141,19 @@ function parseTypeString(value) {
     return rawTypesToRules(rawTypes);
 }
 /**
- * В объявлении метода или поля интерфейса находит название поля/метода и его тип.
+ * Splits name of field and the declaration of its type.
  * @param {string} part 
  */
 function splitNameAndValue(part) {
     const index = part.indexOf(':');
     if (index === -1) {
-        throw new Error('Ошибка синтаксиса ts файла. Неправильно указана часть интерфейса ' + part);
+        throw new Error('Found error of .ts file syntax. Wrong part of interface: ' + part);
     }
 
     const name = part.substr(0, index);
     const value = part.substr(0);
     if (!name || !value) {
-        throw new Error('Ошибка синтаксиса ts файла. Неправильно указана часть интерфейса ' + part);
+        throw new Error('Found error of .ts file syntax. Wrong part of interface: ' + part);
     }
 
     return {
@@ -159,25 +162,25 @@ function splitNameAndValue(part) {
     };
 }
 /**
- * Разбирает содержимое интерфейса по смыслу
+ * Analysis body of the interface. Body should be started from { and be ended with }.
  * @param {string} interfaceBody 
  */
 function parseInterfaceBody(interfaceBody) {
     let text = interfaceBody.slice();
-    // console.log('Было', text);
+    
     text = text
         .trim()
-        .replace(/^\{/, '')   // убираем открывающую {
-        .replace(/\}$/, '')   // убираем закрывающую }
-        .replace(/\,/g, ';')  // меняем все , на ;
-        .replace(/\n/g, ';')  // меняем все символы перевода строки на ;
-        .replace(/\s/g, '')   // убираем все пробельные символы
-        .replace(/\};/g, '}') // убираем лишние ; после }
-        .replace(/\{;/g, '{') // убираем лишние ; после {
-        .replace(/;+/g, ';')  // убираем двойные ;
-        .replace(/^;/, '')    // убираем ; в начале текста
-        .replace(/\{.+?\};/g, 'Object;'); // заменяем все вложенные интерфейсы на Object
-    // console.log('Стало', text);
+        .replace(/^\{/, '')   // removes {
+        .replace(/\}$/, '')   // removes }
+        .replace(/\,/g, ';')  // changes all , on ;
+        .replace(/\n/g, ';')  // changes all \n on ;
+        .replace(/\s/g, '')   // removes all space symbols
+        .replace(/\};/g, '}') // removes unnecessary ; after }
+        .replace(/\{;/g, '{') // removes unnecessary ; after {
+        .replace(/;+/g, ';')  // removes double ;
+        .replace(/^;/, '')    // removes ; in the beginning of the text
+        .replace(/\{.+?\};/g, 'Object;'); // removes all inlined interfaces on Object
+    
     const parts = text.split(';').filter(part => part.trim().length > 0).map(part => {
         const { name, value } = splitNameAndValue(part);
         const rules = parseTypeString(value);
@@ -191,7 +194,7 @@ function parseInterfaceBody(interfaceBody) {
     return parts;
 }
 /**
- * Вытаскивает название интерфейса
+ * 
  * @param {string} text 
  * @param {number} indexOfStart 
  */
@@ -208,8 +211,7 @@ function findInterfaceName(text, indexOfStart) {
     return text.substring(indexOfStart + 17, indexOfEnd).trim();
 }
 /**
- * Находит в строке text закрывающую скобку }, которая относится к открывающей скобке {,
- * которая находится на позиции indexOfStart
+ * Finds next closing bracket } that pairs opening bracket { that is on position indexOfStart.
  * @param {string} text 
  * @param {number} indexOfStart 
  */
@@ -230,7 +232,7 @@ function findClosingBracket(text, indexOfStart) {
     throw new Error('Не удалось найти закрывающую скобку для интерфейса, что означает наличие ошибок синтаксиса ts файла.');
 }
 /**
- * Удаляет комментарии из текста
+ * Removes comments from text. Comments could be \/\/ or \/\* \*\/ or \/\*\* \*\/
  * @param {string} rawText 
  */
 function removeComments(rawText) {
@@ -250,14 +252,14 @@ function removeComments(rawText) {
     return text;
 }
 /**
- * Удаляем повторяющиеся пробельные символы
+ * Removes repeating space symbols.
  * @param {string} rawText 
  */
 function removeRepeatingSpaces(rawText) {
     return rawText.replace(/[ \t]+/g, ' ');
 }
 /**
- * Ищет первое встретившееся начало экспортированного интерфейса в тексте, начиная с position
+ * 
  * @param {string} text 
  * @param {number} position 
  */
@@ -265,16 +267,22 @@ function findNextBeginningOfInterface(text, position) {
     return text.indexOf('export interface ', position);
 }
 /**
- * Находит все интерфейсы в тексте
+ * Prepares text for the search of interface names. Text is heavily cut and couldn`t be used for
+ * analysis of content of interface.
  * @param {string} text 
  */
-function findAllInterfaces(text) {
-    const preparedText = text
+function prepareTextForSerachForInterfaces(text) {
+    return text
         .replace(/\{.+?\};/g, '{}')
         .replace(/'.+?';/g, '\'\'')
         .replace(/".+?";/g, '\"\"')
         .replace(/`.+?`;/g, '\`\`');
-
+}
+/**
+ * Finds all names of interfaces declared in text, including not exported.
+ * @param {string} preparedText 
+ */
+function findAllInterfaces(preparedText) {
     const splitText = preparedText.split('interface ');
 
     if (splitText.length === 1) {
@@ -287,7 +295,7 @@ function findAllInterfaces(text) {
         const hasSpace = indexOfSpace > -1;
         const hasBracket = indexOfBracket > -1;
         if (!hasBracket) {
-            throw new Error('Ошибка синтаксиса ts файла. Объявление интерфейса ничем не заканчивается.');
+            throw new Error('Found error of .ts file syntax. Declaration of interface ends with nothing.');
         }
         const indexOfEnd = hasSpace ? 
             Math.min(indexOfSpace, indexOfBracket) : 
@@ -298,49 +306,92 @@ function findAllInterfaces(text) {
         return interfaceName;
     });
 }
+/**
+ * Has list of names and text on enterance. Returns list of names of interfaces which are exported in text.
+ * Doesn`t count interfaces exported not under their own names.
+ * @param {string} preparedText 
+ * @param {string[]} interfaceNames 
+ */
+function selectExportedInterfaces(preparedText, interfaceNames) {
+    return interfaceNames
+        .map(name => ({
+            name,
+            serachStrings: {
+                defaultLong: `export default interface ${name}`,
+                defaultShort: `export default ${name}`,
+                normal: `export interface ${name}`,
+                equality: `export = ${name}`,
+            }
+        }))
+        .map(entry => {
+            if (preparedText.includes(entry.serachStrings.defaultShort) || preparedText.includes(entry.serachStrings.defaultLong)) {
+                return {
+                    name: entry.name,
+                    typeOfExport: EXPORT_TYPES.DEFAULT,
+                };
+            }
 
-function selectExportedInterfaces(text, interfaceNames) {
-    
+            if (preparedText.includes(entry.serachStrings.normal)) {
+                return {
+                    name: entry.name,
+                    typeOfExport: EXPORT_TYPES.NORMAL,
+                };
+            }
+
+            if (preparedText.includes(entry.serachStrings.equality)) {
+                return {
+                    name: entry.name,
+                    typeOfExport: EXPORT_TYPES.EQUALITY,
+                };
+            }
+
+            return null;
+        })
+        .filter(entry => !!entry);
 }
 /**
- * Вытаскивает список экспортированных интерфейсов из текста. На вход подаётся уже обработанный текст.
+ * Finds body of interface with given name.
+ * @param {string} interfacename 
+ */
+function findInterfaceBody(text, interfacename) {
+    const entry = 'interface ' + interfacename;
+
+    const indexOfEntry = text.indexOf(entry);
+    if (indexOfEntry === -1) {
+        throw new Error(`Could not extract body of interface ${text}.`);
+    }
+    const indexOfStart = text.indexOf('{', indexOfEntry);
+    const indexOfEnd = findClosingBracket(text, indexOfStart);
+
+    return text.substring(indexOfStart, indexOfEnd + 1);
+}
+/**
+ * Extracts exported interfaces from text. Prepared text should be used as argument (
+ * without comments and repeating spaces).
  * @param {string} text 
  */
 function extractInterfacesInternal(text) {
-    const result = [];
+    const preparedText = prepareTextForSerachForInterfaces(text);
+    const interfaceNames = findAllInterfaces(preparedText);
+    const exportedInterfaceNames = selectExportedInterfaces(preparedText, interfaceNames);
+    const result = exportedInterfaceNames
+        .map(
+            ({ name, typeOfExport }) => {
+                const body = findInterfaceBody(text, name);
+                const parts = parseInterfaceBody(body);
 
-    let currentPosition = 0;
-    while (true) {
-        const beginningOfInterface = findNextBeginningOfInterface(text, currentPosition);
-        currentPosition = beginningOfInterface + 17;
+                return {
+                    name,
+                    parts,
+                    typeOfExport,
+                };
+            }
+        );
 
-        if (beginningOfInterface === -1) {
-            return result;
-        }
-
-        const indexOfStart = text.indexOf('{', beginningOfInterface);
-        const indexOfNextClosingBracket = text.indexOf('}', beginningOfInterface);
-
-        if (indexOfStart === -1 || indexOfNextClosingBracket === -1) {
-            return result;
-        }
-        if (indexOfStart > indexOfNextClosingBracket) {
-            throw new Error('Обнаружены ошибки синтаксиса ts файла.');
-        }
-
-        const indexOfEnd = findClosingBracket(text, indexOfStart);
-        const name = findInterfaceName(text, beginningOfInterface);
-        const interfaceBody = text.substring(indexOfStart, indexOfEnd + 1);
-        const parts = parseInterfaceBody(interfaceBody);
-
-        result.push({
-            parts,
-            name,
-        });
-    }
+    return result;
 }
 /**
- * Вытаскивает список экспортированных интерфейсов из текста
+ * Extracts exported interfaces from text.
  * @param {string} rawText 
  */
 exports.extractInterfaces = function(rawText) {

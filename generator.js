@@ -1,15 +1,25 @@
 const { RULES } = require('./rules.js');
+const { EXPORT_TYPES } = require('./export-types.js');
 
 /**
- * Создаёт секцию импортов
+ * Creates section of imports
  * @param {string} name 
  * @param {string} nameOfFileWithInterface 
+ * @param {number} typeOfExport 
  */
-function generateImports(name, nameOfFileWithInterface) {
-    return `import { ${name} } from './${nameOfFileWithInterface}';\n`;
+function generateImports(name, nameOfFileWithInterface, typeOfExport) {
+    if (typeOfExport === EXPORT_TYPES.DEFAULT) {
+        return `import ${name} from './${nameOfFileWithInterface}';\n`;
+    } else if (typeOfExport === EXPORT_TYPES.NORMAL) {
+        return `import { ${name} } from './${nameOfFileWithInterface}';\n`;
+    } else if (typeOfExport === EXPORT_TYPES.EQUALITY) {
+        return `import ${name} = require('./${nameOfFileWithInterface}');\n`;
+    }
+    
+    throw new Error(`Unpredicted type of export ${typeOfExport} for interface ${name} from file ${nameOfFileWithInterface}.`);
 }
 /**
- * Оборачивает innerText в объявление функции так, как будто он - тело функции
+ * Wrapps innerText into function declaration using it as body of the function
  * @param {string} functionName 
  * @param {string} innerText 
  */
@@ -17,7 +27,7 @@ function coverWithFunctionDeclaration(functionName, innerText, interfaceName) {
     return `export function ${functionName}(obj: ${interfaceName}) {\n${innerText}\n}\n`;
 }
 /**
- * Генерирует строку - условие для негативного правила positiveRule
+ * Generates string - condition for negative rule positiveRule
  * @param {string} name 
  * @param {number} negativeRule 
  */
@@ -32,7 +42,7 @@ function generateNegativeCondition(name, negativeRule) {
     return 'false';
 }
 /**
- * Генерирует строку - условие для позитивного правила positiveRule
+ * Generates string - condition for positive rule positiveRule
  * @param {string} name 
  * @param {number} positiveRule 
  */
@@ -71,7 +81,7 @@ function generatePositiveCondition(name, positiveRule) {
     return 'true';
 }
 /**
- * Условие, которое можно сформулировать так: 'если объект не удовлетворяет ни одному из указанных позитивно сформулированных правил'
+ * Condition that could be spelled like: 'if the object does not match any of this positively formulated rules'
  * @param {string} name 
  * @param {number[]} positiveRules 
  */
@@ -82,7 +92,7 @@ function generateSetOfPositiveConditions(name, positiveRules) {
     return `!(${joinedConditions})`;
 }
 /**
- * Сообщение при null
+ * Message if null
  * @param {string} name 
  * @param {string} interfaceName 
  */
@@ -90,7 +100,7 @@ function generateMessageForNull(name, interfaceName) {
     return `console.error('Ошибка при проверке объекта ${interfaceName}. Поле ${name} равно null.');`;
 }
 /**
- * Сообщение при undefined
+ * Message if undefined
  * @param {string} name 
  * @param {string} interfaceName 
  */
@@ -98,7 +108,7 @@ function generateMessageForUndefined(name, interfaceName) {
     return `console.error('Ошибка при проверке объекта ${interfaceName}. Поле ${name} отсутствует, т.е. оно равно undefined.');`;
 }
 /**
- * Формирует строку - список типов на основе массива правил rules, вставляя между ними 'или'
+ * Creates string - list of types based on array of rules separating them with 'или'
  * @param {number[]} rules 
  */
 function rulesToString(rules) {
@@ -141,7 +151,7 @@ function rulesToString(rules) {
     return result.join(' или ');
 }
 /**
- * Генерирует сообщение для набора позитивных правил
+ * Genearates message for set of positive rules
  * @param {string} name 
  * @param {string} interfaceName 
  * @param {string[]} positiveRules 
@@ -152,7 +162,7 @@ function generateMessageForPositiveRules(name, interfaceName, positiveRules) {
     return `console.error('Ошибка при проверке объекта ${interfaceName}. Поле ${name} должно иметь значение ${normalValues}. Вместо этого оно равно\', obj.${name});`;
 }
 /**
- * Генерирует блок, проверяющий 1 переменную
+ * Generates block that checks 1 variable
  * @param {*} part 
  */
 function generateSectionForPart(part, interfaceName) {
@@ -191,7 +201,7 @@ function generateSectionForPart(part, interfaceName) {
     return result;
 }
 /**
- * Генерирует проверку того, является ли аргумент объектом.
+ * Genearates check if the argument is object.
  * @param {string} interfaceName 
  */
 function generateExistanceCheck(interfaceName) {
@@ -201,7 +211,7 @@ function generateExistanceCheck(interfaceName) {
     }\n\t\n`;
 }
 /**
- * Генерирует проверку на лишние параметры
+ * Generates check on unnessesary parameters.
  * @param {string} interfaceName 
  * @param {string[]} keys 
  */
@@ -219,10 +229,10 @@ function generateUnnessesaryParametersCheck(interfaceName, keys) {
     });`
 }
 /**
- * Генерирует содержимое и название для файла с тестом
+ * Generates content and name for the file with test.
  */
 exports.generate = function(interfaceInfo, nameOfFileWithInterface) {
-    const { name, parts } = interfaceInfo;
+    const { name, parts, typeOfExport } = interfaceInfo;
     const functionName = 'validate' + name;
     const fileName = functionName + '.ts';
 
@@ -231,7 +241,7 @@ exports.generate = function(interfaceInfo, nameOfFileWithInterface) {
     let innerText = sections.join('\t\n');
     innerText = generateExistanceCheck(name) + innerText;
     innerText += generateUnnessesaryParametersCheck(name, parts.map(part => part.name));
-    const text = generateImports(name, nameOfFileWithInterface.split('.')[0]) +
+    const text = generateImports(name, nameOfFileWithInterface.split('.')[0], typeOfExport) +
         `\n\/**\n * Валидатор для объекта, принадлежащего интерфейсу ${name}.\n * @param obj объект, который нужно проверить на целостность\n *\/\n` + 
         coverWithFunctionDeclaration(functionName, innerText, name);
 

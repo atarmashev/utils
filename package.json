@@ -1,15 +1,19 @@
 {
-  "name": "vistar",
-  "version": "0.1.5",
-  "description": "Generator of tests for TypeScript interface consistency",
+  "name": "@atarmashev/util",
+  "version": "0.1.0",
+  "description": "Generator of tests for TypeScript interface consistency.",
+  "homepage": "https://github.com/atarmashev/utils",
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/atarmashev/utils.git"
+  },
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "bin": {
-    "vistar": "index.js"
+    "ajz": "index.js"
   },
-  "preferGlobal": true,
-  "author": "Alexander Tarmashev",
+  "author": "Alexander Tarmashev <a.tarmashev@gmail.com>",
   "license": "ISC"
 }

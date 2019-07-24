@@ -1,5 +1,5 @@
 /**
- * Типы данных, которые могут быть в интерфейсе
+ * Types that could be in interface
  */
 exports.TYPES = {
     ANY: 0,
