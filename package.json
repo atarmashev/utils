@@ -1,0 +1,15 @@
+{
+  "name": "vistar",
+  "version": "0.1.5",
+  "description": "Generator of tests for TypeScript interface consistency",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "bin": {
+    "vistar": "index.js"
+  },
+  "preferGlobal": true,
+  "author": "Alexander Tarmashev",
+  "license": "ISC"
+}
