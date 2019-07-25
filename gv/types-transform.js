@@ -1,5 +1,5 @@
-const { RULES } = require('./rules.js');
-const { TYPES } = require('./types.js');
+const { RULES } = require('./enums/rules.js');
+const { TYPES } = require('./enums/types.js');
 /**
  * Formulates set of rules on the base of the set of types
  */

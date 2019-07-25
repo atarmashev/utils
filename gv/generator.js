@@ -1,5 +1,5 @@
-const { RULES } = require('./rules.js');
-const { EXPORT_TYPES } = require('./export-types.js');
+const { RULES } = require('./enums/rules.js');
+const { EXPORT_TYPES } = require('./enums/export-types.js');
 
 /**
  * Creates section of imports
