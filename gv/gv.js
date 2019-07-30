@@ -1,5 +1,6 @@
 const { extractInterfaces } = require('./interface-extractor.js');
 const { generate } = require('./generator.js');
+const { findFilesRecursively } = require('../common');
 const fileSystem = require("fs");
 
 /**
@@ -16,40 +17,10 @@ function saveFileInfos(fileInfos) {
     });
 }
 /**
- * Find all .ts files in this folder and all subfolders.
+ * Finds all .ts and .tsx files in this folder and all subfolders.
  */
 function findTypeScriptFilesRecursively() {
-    const tsFiles = [];
-    const folders = ['.'];
-
-    while (folders.length > 0) {
-        const currentFolder = folders.pop();
-
-        try {
-            const allFilesInCurrentFolder = fileSystem.readdirSync(currentFolder);
-
-            allFilesInCurrentFolder.forEach(fileName => {
-                const fileNameAndPath = currentFolder === '.' ? 
-                    `${fileName}` : 
-                    `${currentFolder}/${fileName}`;
-
-                if (!fileName.includes('.') && fileName !== 'node_modules') { // we should not search in node_modules
-                    folders.push(fileNameAndPath);
-                } else if (fileName.endsWith('.ts')) {
-                    tsFiles.push(fileNameAndPath);
-                }
-            });
-
-            if (tsFiles.length > 1000 || folders.length > 1000) {
-                throw new Error(`The project is too large. Found ${tsFiles.length} .ts files in ${folders.length} folders. Set --max_files option to large number (>>1000) to avoid this check.`);
-            }
-        } catch (error) {
-            console.error('Error in reading structure of files of the project.');
-            return [];
-        }
-    }
-    
-    return tsFiles;
+    return findFilesRecursively(['.ts', '.tsx']);
 }
 
 /**

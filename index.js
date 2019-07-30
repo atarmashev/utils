@@ -1,13 +1,8 @@
 #!/usr/bin/env node
 
 const { generateValidators } = require('./gv/gv');
+const { convertPXToVW } = require('./vw/vw');
 
-/**
- * Converts px to vw in all .css, .scss, .sass and .less files.
- */
-function convertPXToVW() {
-    console.log('Not supported yet.');
-}
 /**
  * Executes command line interface. Useful when command line args were not set.
  */
@@ -15,27 +10,31 @@ function execCommandLineInterface() {
     console.log('Enter what should be done:');
     console.log('\tgv - generate validators for TypeScript interfaces');
     console.log('\tvw - convert PX to VW');
+
+    const socket = process.openStdin();
     
-    process.openStdin().addListener('data', (value) => {
+    socket.addListener('data', (value) => {
+        socket.removeAllListeners();
         const command = value.toString().trim();
     
         if (command === 'gv') {
             generateValidators();
+            process.exit();
         } else if (command === 'vw') {
             convertPXToVW();
         } else {
             console.log('Unsupported command. Terminating.');
+            process.exit();
         }
-    
-        process.exit();
     });
 }
 
-const env = process.env;
+const subcommand = process.argv[2];
+
 // searching for required command line parameters
-if (env['npm_config_gv']) {
+if (subcommand === 'gv') {
     generateValidators();
-} else if (env['npm_config_vw']) {
+} else if (subcommand === 'vw') {
     convertPXToVW();
 } else {
     execCommandLineInterface();
