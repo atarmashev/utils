@@ -27,7 +27,7 @@ exports.findFilesRecursively = function(resolutions) {
                 const fileNameAndPath = currentFolder === '.' ? 
                     `${fileName}` : 
                     `${currentFolder}/${fileName}`;
-
+                
                 if (!fileName.includes('.') && fileName !== 'node_modules') { // we should not search in node_modules
                     folders.push(fileNameAndPath);
                 } else if (endWithAnyOf(fileName, resolutions)) {
@@ -36,11 +36,12 @@ exports.findFilesRecursively = function(resolutions) {
             });
 
             if (tsFiles.length > 1000 || folders.length > 1000) {
-                throw new Error(`The project is too large. Found ${tsFiles.length} .ts files in ${folders.length} folders. Set --max_files option to large number (>>1000) to avoid this check.`);
+                console.error(`The project is too large. Found ${tsFiles.length} .ts files in ${folders.length} folders. Set --max_files option to large number (>>1000) to avoid this check.`);
+                return [];
             }
         } catch (error) {
-            console.error('Error in reading structure of files of the project.', error);
-            return [];
+            // we simply continue if we can`t open folder or it was not a folder
+            continue;
         }
     }
     

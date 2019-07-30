@@ -1,6 +1,6 @@
 {
   "name": "@atarmashev/util",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "description": "Generator of tests for TypeScript interface consistency.",
   "homepage": "https://github.com/atarmashev/utils",
   "repository": {
